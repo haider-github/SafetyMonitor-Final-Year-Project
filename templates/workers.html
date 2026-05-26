@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Workers</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    body { background: #0f1117; color: #eee; }
+    .card  { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; }
+    .form-control, .form-label { color: #eee; }
+    .form-control { background: #0f1117; border-color: #2a2d3a; }
+    .form-control:focus { background: #0f1117; color: #eee; border-color: #0dcaf0; box-shadow: none; }
+    .form-select { background: #0f1117; color: #eee; border-color: #2a2d3a; }
+    .form-select:focus { background: #0f1117; color: #eee; border-color: #0dcaf0; box-shadow: none; }
+    .form-select option { background: #1a1d27; }
+
+    .worker-card {
+      background: #1f2235;
+      border: 1px solid #2a2d3a;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .worker-card:hover { border-color: #0dcaf0; transform: translateY(-2px); }
+
+    .btn-edit   { font-size:0.75rem; padding:4px 12px; }
+    .btn-delete { font-size:0.75rem; padding:4px 12px; }
+
+    .search-bar input, .search-bar select {
+      background: #0f1117;
+      border: 1px solid #2a2d3a;
+      color: #eee;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 0.9rem;
+    }
+    .search-bar input:focus, .search-bar select:focus {
+      outline: none;
+      border-color: #0dcaf0;
+    }
+
+    .badge-dept {
+      background: #0d2a3a;
+      color: #0dcaf0;
+      border-radius: 99px;
+      padding: 2px 10px;
+      font-size: 0.72rem;
+    }
+    .no-results { color: #aaa; text-align: center; padding: 30px; width: 100%; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark" style="background:#1a1d27; border-bottom:1px solid #2a2d3a;">
+  <div class="container-fluid">
+    <a href="/" class="navbar-brand fw-bold text-warning">⚠ Safety Monitor</a>
+    <a href="/" class="btn btn-sm btn-outline-secondary">← Dashboard</a>
+  </div>
+</nav>
+
+<div class="container p-4">
+  <div class="row g-4">
+
+    <!-- ── Add Worker Form ── -->
+    <div class="col-md-4">
+      <div class="card p-4">
+        <h5 class="text-info mb-3">➕ Add New Worker</h5>
+        {% if message %}
+        <div class="alert alert-{{ msg_type }} py-2">{{ message }}</div>
+        {% endif %}
+        <form method="POST" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label">Worker ID *</label>
+            <input type="text" name="worker_id" class="form-control"
+                   placeholder="e.g. W001" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Full Name *</label>
+            <input type="text" name="name" class="form-control"
+                   placeholder="e.g. Ali Hassan" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Phone Number</label>
+            <input type="text" name="phone" class="form-control"
+                   placeholder="e.g. 0300-1234567">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Department</label>
+            <input type="text" name="department" class="form-control"
+                   placeholder="e.g. Production, Welding">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Location / Zone</label>
+            <input type="text" name="location" class="form-control"
+                   placeholder="e.g. Zone A, Floor 2">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Photo
+              <span class="text-muted" style="font-size:0.75rem">
+                (required for face recognition)
+              </span>
+            </label>
+            <input type="file" name="image" class="form-control" accept="image/*">
+          </div>
+          <button type="submit" class="btn btn-info w-100 fw-bold">
+            Add Worker
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Workers List ── -->
+    <div class="col-md-8">
+      <div class="card p-4">
+
+        <!-- Header row -->
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h5 class="text-info mb-0">
+            👷 Registered Workers
+            <span class="badge bg-info text-dark ms-2" id="worker-count">
+              {{ workers|length }}
+            </span>
+          </h5>
+          <div class="d-flex gap-2 flex-wrap">
+            <form method="POST" action="/retrain">
+              <button type="submit" class="btn btn-sm btn-outline-warning">
+                🔄 Retrain
+              </button>
+            </form>
+            <button onclick="exportPDF()"
+                    class="btn btn-sm btn-outline-success">
+              📄 Export PDF
+            </button>
+            <button onclick="exportCSV()"
+                    class="btn btn-sm btn-outline-primary">
+              📊 Export Excel
+            </button>
+          </div>
+        </div>
+
+        <!-- Search and Filter bar -->
+        <div class="search-bar d-flex gap-2 mb-4 flex-wrap">
+          <input type="text" id="searchInput"
+                 placeholder="🔍  Search by name or ID..."
+                 oninput="filterWorkers()"
+                 style="flex:1; min-width:180px;">
+          <select id="deptFilter" onchange="filterWorkers()"
+                  style="min-width:160px;">
+            <option value="">All Departments</option>
+            {% set depts = [] %}
+            {% for w in workers %}
+              {% if w[4] and w[4] not in depts %}
+                {% set _ = depts.append(w[4]) %}
+                <option value="{{ w[4] }}">{{ w[4] }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Worker Cards -->
+        <div class="row g-3" id="workerGrid">
+          {% for w in workers %}
+          <div class="col-md-4 worker-item"
+               data-name="{{ w[2]|lower }}"
+               data-id="{{ w[1]|lower }}"
+               data-dept="{{ w[4]|lower if w[4] else '' }}">
+            <div class="worker-card">
+
+              <!-- Photo -->
+              {% if w[6] %}
+              <img src="/{{ w[6] }}" class="rounded-circle mb-2"
+                   width="70" height="70"
+                   style="object-fit:cover; border:2px solid #0dcaf0">
+              {% else %}
+              <div class="rounded-circle bg-secondary d-inline-flex
+                          align-items-center justify-content-center mb-2"
+                   style="width:70px;height:70px;font-size:1.8rem">👷</div>
+              {% endif %}
+
+              <!-- Info -->
+              <div class="fw-bold text-info">{{ w[2] }}</div>
+              <div class="text-muted mb-1" style="font-size:0.78rem">
+                🪪 {{ w[1] }}
+              </div>
+              {% if w[4] %}
+              <span class="badge-dept">{{ w[4] }}</span>
+              {% endif %}
+              <div style="font-size:0.78rem; margin-top:6px">
+                📞 {{ w[3] or '—' }}
+              </div>
+              <div style="font-size:0.78rem">
+                📍 {{ w[5] or '—' }}
+              </div>
+
+               <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+  <a href="/edit_worker/{{ w[1] }}"
+     class="btn btn-warning btn-edit fw-bold">
+    ✏️ Edit
+  </a>
+  <a href="/worker_report/{{ w[1] }}"
+     class="btn btn-info btn-edit fw-bold">
+    📄 Report
+  </a>
+  <form method="POST" action="/delete_worker/{{ w[1] }}"
+        onsubmit="return confirm('Delete {{ w[2] }}? This cannot be undone.')">
+    <button type="submit"
+            class="btn btn-danger btn-delete fw-bold">
+      🗑️ Delete
+    </button>
+  </form>
+</div>
+
+            </div>
+          </div>
+          {% else %}
+          <div class="no-results">No workers registered yet.</div>
+          {% endfor %}
+        </div>
+
+        <!-- No results message (hidden by default) -->
+        <div id="noResults" class="no-results" style="display:none">
+          No workers match your search.
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Worker data for export ──
+const workersData =[
+  {% for w in workers %}
+  {
+    id:         "{{ w[1] }}",
+    name:       "{{ w[2] }}",
+    phone:      "{{ w[3] or '' }}",
+    department: "{{ w[4] or '' }}",
+    location:   "{{ w[5] or '' }}"
+  },
+  {% endfor %}
+];
+
+// ── Search and Filter ──
+function filterWorkers() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const dept   = document.getElementById('deptFilter').value.toLowerCase();
+  const items  = document.querySelectorAll('.worker-item');
+  let visible  = 0;
+
+  items.forEach(item => {
+    const nameMatch = item.dataset.name.includes(search);
+    const idMatch   = item.dataset.id.includes(search);
+    const deptMatch = dept === '' || item.dataset.dept === dept;
+
+    if ((nameMatch || idMatch) && deptMatch) {
+      item.style.display = '';
+      visible++;
+    } else {
+      item.style.display = 'none';
+    }
+  });
+
+  document.getElementById('noResults').style.display =
+    visible === 0 ? 'block' : 'none';
+  document.getElementById('worker-count').textContent = visible;
+}
+
+// ── Export PDF ──
+function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(16);
+  doc.text('Worker Registry — Safety Monitor', 14, 18);
+  doc.setFontSize(10);
+  doc.text('Generated: ' + new Date().toLocaleString(), 14, 26);
+
+  const rows = workersData.map(w => [
+    w.id, w.name, w.phone, w.department, w.location
+  ]);
+
+  doc.autoTable({
+    startY: 32,
+    head: [['Worker ID', 'Name', 'Phone', 'Department', 'Location']],
+    body: rows,
+    headStyles: { fillColor: [13, 202, 240], textColor: 0 },
+    alternateRowStyles: { fillColor: [240, 248, 255] },
+    styles: { fontSize: 10 }
+  });
+
+  doc.save('workers_registry.pdf');
+}
+
+// ── Export CSV (opens in Excel) ──
+function exportCSV() {
+  const headers = ['Worker ID', 'Name', 'Phone', 'Department', 'Location'];
+  const rows    = workersData.map(w =>
+    [w.id, w.name, w.phone, w.department, w.location]
+      .map(v => `"${v}"`).join(',')
+  );
+  const csv  = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'workers_registry.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>

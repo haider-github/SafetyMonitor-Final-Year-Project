@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edit Worker</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body { background: #0f1117; color: #eee; }
+    .card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; }
+    .form-control, .form-label { color: #eee; }
+    .form-control { background: #0f1117; border-color: #2a2d3a; }
+    .form-control:focus { background: #0f1117; color: #eee; border-color: #ffc107; box-shadow: none; }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-dark" style="background:#1a1d27; border-bottom:1px solid #2a2d3a;">
+  <div class="container-fluid">
+    <a href="/" class="navbar-brand fw-bold text-warning">⚠ Safety Monitor</a>
+    <a href="/workers" class="btn btn-sm btn-outline-secondary">← Back to Workers</a>
+  </div>
+</nav>
+
+<div class="container p-4" style="max-width:600px">
+  <div class="card p-4">
+    <h5 class="text-warning mb-4">✏️ Edit Worker — {{ worker[2] }}</h5>
+
+    <!-- Current photo -->
+    <div class="text-center mb-4">
+      {% if worker[6] %}
+      <img src="/{{ worker[6] }}" class="rounded-circle"
+           width="90" height="90"
+           style="object-fit:cover; border:3px solid #ffc107">
+      {% else %}
+      <div class="rounded-circle bg-secondary d-inline-flex
+                  align-items-center justify-content-center"
+           style="width:90px;height:90px;font-size:2rem">👷</div>
+      {% endif %}
+      <div class="text-muted mt-2" style="font-size:0.8rem">Current photo</div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label class="form-label">Worker ID</label>
+        <input type="text" class="form-control"
+               value="{{ worker[1] }}" disabled>
+        <div class="text-muted" style="font-size:0.75rem">
+          Worker ID cannot be changed
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Full Name *</label>
+        <input type="text" name="name" class="form-control"
+               value="{{ worker[2] }}" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Phone Number</label>
+        <input type="text" name="phone" class="form-control"
+               value="{{ worker[3] or '' }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Department</label>
+        <input type="text" name="department" class="form-control"
+               value="{{ worker[4] or '' }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Location / Zone</label>
+        <input type="text" name="location" class="form-control"
+               value="{{ worker[5] or '' }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">
+          Update Photo
+          <span class="text-muted" style="font-size:0.75rem">
+            (leave empty to keep current photo)
+          </span>
+        </label>
+        <input type="file" name="image" class="form-control" accept="image/*">
+      </div>
+
+      <div class="d-flex gap-3 mt-4">
+        <button type="submit" class="btn btn-warning fw-bold flex-grow-1">
+          💾 Save Changes
+        </button>
+        <a href="/workers" class="btn btn-outline-secondary flex-grow-1">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+</body>
+</html>
